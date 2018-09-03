@@ -3,8 +3,11 @@ package dev.afilakovic.blockchain
 import java.time.LocalDateTime
 import java.util.UUID
 
+import dev.afilakovic.crypto.Hashing
+
 object TransactionConstants{
   val BLOCK_REWARD_AMOUNT = 25
+  val HASHING = Hashing()
 }
 
 case class TransactionInput(outputHash: BigInt,
@@ -17,15 +20,16 @@ case class TransactionOutput(amount: BigDecimal,
                              payee: String){
   val id = UUID.randomUUID().toString
   val timestamp: LocalDateTime = LocalDateTime.now
-  val hash = BigInt(1) //TODO
+  val hash = TransactionConstants.HASHING.hashTransactionOutput(this) //TODO
   val signature = BigInt(1)//TODO
+
+  override def toString: String = List(id, amount, payee, timestamp, signature).mkString("$%#")
 }
 
-case class Transaction private(input: Seq[TransactionInput],
+case class Transaction(input: Seq[TransactionInput],
                           output: Seq[TransactionOutput]) {
-  val hash = BigInt(1) //TODO
+  val hash =  TransactionConstants.HASHING.hashTransaction(this)//TODO
+  override def toString: String = output.map(_.hash).mkString("$%#")
 }
 
-object BlockReward extends Transaction{
-  def apply(blockCreator: String) = Transaction(Seq.empty[TransactionInput], Seq(TransactionOutput(TransactionConstants.BLOCK_REWARD_AMOUNT, blockCreator)))
-}
+class BlockReward(blockCreator: String) extends Transaction(Seq.empty[TransactionInput], Seq(TransactionOutput(TransactionConstants.BLOCK_REWARD_AMOUNT, blockCreator)))
