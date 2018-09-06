@@ -4,9 +4,11 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import com.typesafe.scalalogging.Logger
+import dev.afilakovic.blockchain.{Block, BlockReward, GenesisBlock}
 import dev.afilakovic.crypto.DigitalSignature
+import dev.afilakovic.p2p.BlockChainActor.NewBlock
 import dev.afilakovic.p2p.NetworkActor
-import dev.afilakovic.p2p.NetworkActor.AddPeer
+import dev.afilakovic.p2p.NetworkActor.{AddPeer, BroadcastRequest}
 
 object AppConfig {
   val DEFAULT_STRING_DELIMITER = "$%#"
@@ -19,6 +21,7 @@ object AppConfig {
 }
 
 object TvzCoinApp extends App {
+
   import dev.afilakovic.AppConfig.SEED_HOST
 
   val logger = Logger("TvzCoin")
@@ -27,7 +30,7 @@ object TvzCoinApp extends App {
   implicit val materializer = ActorMaterializer()
   implicit val executionContext = system.dispatcher
 
-  val networkActor = system.actorOf(NetworkActor.props)
+  val networkActor = system.actorOf(NetworkActor.props, "networkActor")
 
   logger.info(s"User <${AppConfig.SIGNATURE.address}> startup.")
 

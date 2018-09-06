@@ -4,15 +4,17 @@ import java.security._
 import java.util.Base64
 
 import dev.afilakovic.blockchain.{SignedTransaction, Transaction}
-import org.bouncycastle.jce.ECNamedCurveTable
+import org.bouncycastle.crypto.ec.CustomNamedCurves
+import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 
 object DigitalSignature {
-  val ecdsaSign = Signature.getInstance("SHA256withECDSA", "BC")
+  val ecdsaSign = Signature.getInstance("SHA256withECDSA", new BouncyCastleProvider)
 
   private def generateKeyPair(curve: String) = {
-    val ecSpec: ECParameterSpec = ECNamedCurveTable.getParameterSpec(curve)
-    val generator: KeyPairGenerator = KeyPairGenerator.getInstance("ECDSA", "BC")
+    val ecP = CustomNamedCurves.getByName(curve)
+    val ecSpec = new ECParameterSpec(ecP.getCurve, ecP.getG, ecP.getN, ecP.getH, ecP.getSeed)
+    val generator: KeyPairGenerator = KeyPairGenerator.getInstance("ECDSA", new BouncyCastleProvider)
     generator.initialize(ecSpec)
     generator.generateKeyPair
   }
@@ -33,6 +35,7 @@ object DigitalSignature {
 }
 
 class DigitalSignature(val curve: String) {
+
   import dev.afilakovic.crypto.DigitalSignature._
 
   private val keyPair: KeyPair = generateKeyPair(curve)
@@ -40,7 +43,7 @@ class DigitalSignature(val curve: String) {
   private val privateKey = keyPair.getPrivate
   val publicKey = keyPair.getPublic
 
-  def address: String = Base64.getEncoder.encodeToString(publicKey.getEncoded)
+  def address: String = Hashing().hashAddress(Base64.getEncoder.encodeToString(publicKey.getEncoded))
 
   def sign(transaction: Transaction) = DigitalSignature.sign(transaction, privateKey)
 }

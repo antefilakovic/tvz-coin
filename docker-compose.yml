@@ -1,0 +1,37 @@
+version: '3.7'
+services:
+    node1:
+        image: tvz-coin:0.2
+        environment:
+        - JAVA_OPTS=-Dakka.remote.netty.tcp.hostname=node1 -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+        ports:
+        - "9000:9000"
+        - "5005:5005"
+
+    node2:
+        image: tvz-coin:0.2
+        links:
+        - node1
+        environment:
+        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor
+        ports:
+        - "9001:9000"
+
+    node3:
+        image: tvz-coin:0.2
+        links:
+        - node1
+        environment:
+        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor
+        ports:
+        - "9002:9000"
+
+    node4:
+        image: tvz-coin:0.2
+        links:
+        - node1
+        environment:
+        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor
+        ports:
+        - "9003:9000"
+

@@ -68,10 +68,11 @@ class NetworkActor(implicit ec: ExecutionContext) extends Actor {
         newPeerRef ! BlockChainActor.GetLast
 
         logger.debug(s"Peers count: ${peers.size}")
-      } else logger.debug("Peer already added.")
+      } else logger.debug("Peer already added")
     case HandShake(fromNode) =>
       logger.debug(s"Handshake from $fromNode at ${sender().path.toStringWithoutAddress}")
       peers += sender()
+      logger.debug(s"Peers count: ${peers.size}")
     case BroadcastRequest(req) => broadcast(req)
     case GetPeers => sender() ! PeersResponse(peers.toSeq.map(_.path.toSerializationFormat))
     case PeersResponse(newPeers) => newPeers.foreach(self ! AddPeer(_))

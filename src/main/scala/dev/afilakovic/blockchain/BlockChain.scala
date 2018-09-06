@@ -7,7 +7,7 @@ import scala.util.{Failure, Success, Try}
 
 object BlockChain {
   val HASHING = Hashing()
-  val DIFFICULTY = BigInt(2).pow(250)
+  val DIFFICULTY = BigInt(2).pow(253)
 
   def proofOfWork(block: Block) = block.hash < BlockChain.DIFFICULTY
 
