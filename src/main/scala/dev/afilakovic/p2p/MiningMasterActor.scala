@@ -7,8 +7,8 @@ import akka.event.LoggingReceive
 import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
-import dev.afilakovic.blockchain.{Block, BlockChain, Transaction}
-import dev.afilakovic.p2p.BlockChainActor.{AddTransactions, CurrentBlockChain, GetBlockChain}
+import dev.afilakovic.blockchain.{Block, BlockChain, SignedTransaction}
+import dev.afilakovic.p2p.BlockChainActor.{CurrentBlockChain, GetBlockChain}
 import dev.afilakovic.p2p.NetworkActor.BroadcastRequest
 
 import scala.collection.immutable.{Seq, Set}
@@ -17,7 +17,7 @@ import scala.concurrent.duration.Duration
 
 object MiningMasterActor {
 
-  case class MineBlock(blockChain: BlockChain, transactions: Seq[Transaction])
+  case class MineBlock(blockChain: BlockChain, transactions: Seq[SignedTransaction])
 
   case class BlockChainChanged(blockchain: BlockChain)
 
@@ -35,19 +35,19 @@ class MiningMasterActor(network: ActorRef)(implicit ec: ExecutionContext) extend
   implicit val timeout = Timeout(Duration(5, TimeUnit.SECONDS))
 
   var miners: Set[ActorRef] = Set.empty
-  var transactions: Set[Transaction] = Set.empty
+  var transactions: Set[SignedTransaction] = Set.empty
 
   def createWorker(factory: ActorRefFactory): ActorRef = factory.actorOf(MinerActor.props(self))
 
   override def receive = LoggingReceive {
     case MineBlock(blockChain, requestTransactions) =>
       logger.debug(s"Got mining request for ${requestTransactions.size} new transactions with current blockchain index at ${blockChain.lastBlock.index}")
-      val filtered = requestTransactions.filterNot(blockChain.isValidTransaction)
+      val filtered = requestTransactions.filterNot(blockChain.isTransactionValid)
 
       if ((filtered.toSet -- transactions).nonEmpty) {
         transactions ++= filtered
 
-        network ! BroadcastRequest(AddTransactions(transactions.to[Seq]))
+        network ! BroadcastRequest(NetworkActor.AddTransactions(transactions.to[Seq]))
 
         val miner = createWorker(context)
         context.watch(miner)
@@ -59,7 +59,7 @@ class MiningMasterActor(network: ActorRef)(implicit ec: ExecutionContext) extend
       logger.debug("The blockchain has changed, stopping all miners.")
       miners.foreach(_ ! PoisonPill)
 
-      transactions = transactions.filterNot(newBlockChain.isValidTransaction)
+      transactions = transactions.filterNot(newBlockChain.isTransactionValid)
 
       if (transactions.nonEmpty) {
         self ! MineBlock(newBlockChain, transactions.to[Seq])

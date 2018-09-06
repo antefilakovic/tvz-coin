@@ -8,7 +8,7 @@ import akka.pattern.{ask, pipe}
 import akka.util.Timeout
 import com.typesafe.scalalogging.Logger
 import dev.afilakovic.AppConfig
-import dev.afilakovic.blockchain.BlockChain
+import dev.afilakovic.blockchain.{BlockChain, SignedTransaction}
 import dev.afilakovic.p2p.MiningMasterActor.{BlockChainChanged, MineBlock}
 
 import scala.concurrent.ExecutionContext
@@ -30,6 +30,8 @@ object NetworkActor {
 
   case class BlockChainUpdated(blockChain: BlockChain)
 
+  case class AddTransactions(transactions: Seq[SignedTransaction])
+
   def props(implicit ec: ExecutionContext) = Props(new NetworkActor)
 }
 
@@ -39,7 +41,7 @@ class NetworkActor(implicit ec: ExecutionContext) extends Actor {
   import dev.afilakovic.p2p.NetworkActor._
 
   val logger: Logger = Logger(classOf[NetworkActor])
-  val name = AppConfig.IDENTITY //todo: address
+  val name = AppConfig.SIGNATURE.address
 
   implicit val timeout = Timeout(Duration(5, TimeUnit.SECONDS))
   implicit val executionContext = context.system.dispatcher
@@ -65,20 +67,19 @@ class NetworkActor(implicit ec: ExecutionContext) extends Actor {
         peers += newPeerRef
         newPeerRef ! BlockChainActor.GetLast
 
-        logger.debug(s"Peer list grew to size ${peers.size}")
-      } else logger.debug("We already know this peer, discarding")
+        logger.debug(s"Peers count: ${peers.size}")
+      } else logger.debug("Peer already added.")
     case HandShake(fromNode) =>
-      logger.debug(s"Received a handshake from $fromNode at ${sender().path.toStringWithoutAddress}")
+      logger.debug(s"Handshake from $fromNode at ${sender().path.toStringWithoutAddress}")
       peers += sender()
     case BroadcastRequest(req) => broadcast(req)
-    case PeersResponse(newPeers) => newPeers.foreach(self ! AddPeer(_))
     case GetPeers => sender() ! PeersResponse(peers.toSeq.map(_.path.toSerializationFormat))
+    case PeersResponse(newPeers) => newPeers.foreach(self ! AddPeer(_))
     case Terminated(actorRef) =>
-      logger.debug(s"Peer $actorRef has terminated. Removing it from the list.")
+      logger.debug(s"Peer $actorRef was terminated. Removing it from the list.")
       peers -= actorRef
-    case BlockChainActor.AddTransactions(transactions) =>
-      (blockChainActor ? BlockChainActor.GetBlockChain).mapTo[CurrentBlockChain]
-        .map(chain => MineBlock(chain.blockChain, transactions.toList)).pipeTo(miningMaster)
+    case AddTransactions(transactions) =>
+      (blockChainActor ? BlockChainActor.GetBlockChain).mapTo[CurrentBlockChain].map(chain => MineBlock(chain.blockChain, transactions.toList)).pipeTo(miningMaster)
     case BlockChainUpdated(blockChain) => miningMaster ! BlockChainChanged(blockChain)
     case req@(BlockChainActor.GetBlockChain | BlockChainActor.GetAllBlocks | BlockChainActor.GetLast | BlockChainActor.NewBlock(_) | BlockChainActor.NewBlockChain(_)) =>
       blockChainActor.forward(req)

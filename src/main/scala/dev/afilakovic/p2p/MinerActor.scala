@@ -5,8 +5,7 @@ import java.time.LocalDateTime
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import com.typesafe.scalalogging.Logger
-import dev.afilakovic.AppConfig
-import dev.afilakovic.blockchain.{Block, BlockChain, BlockReward, Transaction}
+import dev.afilakovic.blockchain._
 import dev.afilakovic.p2p.MinerActor.MineBlock
 import dev.afilakovic.p2p.MiningMasterActor.MineResult
 
@@ -15,7 +14,7 @@ import scala.collection.immutable.Seq
 object MinerActor {
 
   case class MineBlock(blockChain: BlockChain,
-                       transactions: Seq[Transaction],
+                       transactions: Seq[SignedTransaction],
                        nonce: Long = 0,
                        timeStamp: LocalDateTime = LocalDateTime.now)
 
@@ -24,18 +23,17 @@ object MinerActor {
 
 class MinerActor(master: ActorRef) extends Actor {
   val logger = Logger(classOf[MinerActor])
-  val name = AppConfig.IDENTITY
 
   override def receive: Receive = LoggingReceive {
     case MineBlock(blockChain, transactions, nonce, timeStamp) =>
       var transactionsToMine = transactions
       if (nonce == 0) {
         logger.debug(s"Starting mining attempt for ${transactions.size} transactions with index ${blockChain.lastBlock.index + 1}")
-        transactionsToMine = transactions :+ new BlockReward(name)
+        transactionsToMine = transactions :+ BlockReward.create
       }
 
       val lastBlock = blockChain.lastBlock
-      val newBlock = Block(lastBlock.index + 1, lastBlock.hash, transactionsToMine, nonce)
+      val newBlock = Block(lastBlock.index + 1, lastBlock.hash, transactionsToMine.toSet, nonce)
 
       if (BlockChain.proofOfWork(newBlock)) {
         logger.debug(s"Found a block with index ${newBlock.index} after ${newBlock.nonce + 1} attempts.")

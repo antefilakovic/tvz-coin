@@ -3,7 +3,7 @@ package dev.afilakovic.p2p
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import com.typesafe.scalalogging.Logger
-import dev.afilakovic.blockchain.{Block, BlockChain, Transaction}
+import dev.afilakovic.blockchain.{Block, BlockChain, SignedTransaction, Transaction}
 import dev.afilakovic.p2p.NetworkActor.{BlockChainUpdated, BroadcastRequest}
 
 import scala.util.{Failure, Success}
@@ -21,8 +21,6 @@ object BlockChainActor {
   case class NewBlockChain(blocks: Seq[Block])
 
   case class CurrentBlockChain(blockChain: BlockChain)
-
-  case class AddTransactions(transactions: Seq[Transaction])
 
   def props(peerToPeer: ActorRef) = Props(new BlockChainActor(BlockChain(), peerToPeer))
 }

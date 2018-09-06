@@ -1,6 +1,6 @@
 package dev.afilakovic.blockchain
 
-import dev.afilakovic.crypto.Hashing
+import dev.afilakovic.crypto.{DigitalSignature, Hashing}
 
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
@@ -26,8 +26,8 @@ class BlockChain private(head: Block, tail: Option[BlockChain]) {
 
   def lastBlock = head
 
-  def unspentTransactionsForUser(user: String): Seq[TransactionOutput] =
-    foldLeft[(Seq[TransactionInput], Seq[TransactionOutput])]((Seq.empty[TransactionInput], Seq.empty[TransactionOutput])) {
+  def unspentTransactionsForUser(user: String): Set[TransactionOutput] =
+    foldLeft[(Set[TransactionInput], Set[TransactionOutput])]((Set.empty[TransactionInput], Set.empty[TransactionOutput])) {
       (tuple, block) => (block.transactionInputsByUser(user) ++ tuple._1, block.unspentTransactionOutputsByUser(user, tuple._1) ++ tuple._2)
     }._2
 
@@ -45,12 +45,31 @@ class BlockChain private(head: Block, tail: Option[BlockChain]) {
       previousBlock.hash == block.previousHash &&
       previousBlock.timestamp.isBefore(block.timestamp) &&
       BlockChain.HASHING.hashBlock(block) == block.hash &&
-      block.transactions.forall(isValidTransaction) &&
+      areAllTransactionsValid(block) &&
       BlockChain.proofOfWork(block)
 
-  //todo: add signature check
-  def isValidTransaction(transaction: Transaction): Boolean = foldLeft[Boolean](true) {
-    (stmt, block) => stmt && !block.transactions.flatMap(_.input).map(_.outputHash).exists(usedOutput => transaction.input.map(_.outputHash).contains(usedOutput))
+  private def areAllTransactionsValid(block: Block): Boolean = {
+    val blockRewards = block.signedTransaction.filter(_.isInstanceOf[BlockReward])
+    blockRewards.size == 1 && (block.signedTransaction -- blockRewards).forall(isTransactionValid)
+  }
+
+  def isTransactionValid(signedTransaction: SignedTransaction): Boolean = {
+    val transaction = signedTransaction.transaction
+    areAllInputsUnspent(transaction) &&
+      transaction.input.forall(isThereAnOutputForInput) &&
+      DigitalSignature.verify(signedTransaction)
+  }
+
+  def isThereAnOutputForInput(input: TransactionInput): Boolean = foldLeft[Boolean](false) {
+    (stmt, block) =>
+      stmt ||
+        block.signedTransaction.map(_.transaction).flatMap(_.output).map(_.hash).contains(input.outputHash)
+  }
+
+  private def areAllInputsUnspent(transaction: Transaction) = foldLeft[Boolean](true) {
+    (stmt, block) =>
+      stmt &&
+        !block.signedTransaction.map(_.transaction).flatMap(_.input).map(_.outputHash).exists(usedOutput => transaction.input.map(_.outputHash).contains(usedOutput))
   }
 
   @tailrec
