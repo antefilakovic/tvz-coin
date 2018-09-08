@@ -41,21 +41,21 @@ class BlockChainActor(var blockChain: BlockChain, network: ActorRef) extends Act
 
   def newBlock(block: Block, peer: ActorRef) = {
     val lastBlock = blockChain.lastBlock
-    logger.info(s"New block with index <${block.index}> received while last index is <${lastBlock.index}>")
+    logger.info(s"New block index <${block.index}> - last index <${lastBlock.index}>")
 
     if (block.index == lastBlock.index + 1) {
       blockChain.addBlock(block) match {
-        case Success(newBlockChain) => logger.info("Received valid block, updating blockchain")
+        case Success(newBlockChain) => logger.info("Valid block, updating chain")
           blockChain = newBlockChain
           network ! BroadcastRequest(NewBlock(blockChain.lastBlock))
           network ! BlockChainUpdated(blockChain)
-        case Failure(_) => logger.info("Adding new block failed, querying whole chain")
+        case Failure(_) => logger.info("Adding failed, getting whole chain")
           peer ! GetAllBlocks
       }
     } else if (block.index <= lastBlock.index) {
-      logger.debug("Block was not newer than last block, ignoring.")
+      logger.debug("Block not newer, ignoring.")
     } else {
-      logger.info("Block is more than 1 ahead, get the chain from our peer")
+      logger.info("Block more than 1 ahead, getting the chain from peer")
       peer ! GetAllBlocks
     }
   }
@@ -65,17 +65,17 @@ class BlockChainActor(var blockChain: BlockChain, network: ActorRef) extends Act
     logger.info(s"${blocks.length} blocks received.")
 
     blocks match {
-      case Nil => logger.warn("Received an empty block list, discarding")
+      case Nil => logger.warn("Empty block list, discarding")
       case _ :+ lastReceived if lastReceived.index <= lastBlock.index =>
-        logger.debug("Received block chain is shorter than the current block chain. Do nothing")
+        logger.debug("Blockchain is shorter than the current blockchain. Do nothing")
       case _ =>
-        logger.info("Received block chain is longer than the current block chain")
+        logger.info("Blockchain is longer than the current blockchain")
         BlockChain.createWith(blocks) match {
           case Success(newChain) =>
             blockChain = newChain
             network ! BroadcastRequest(NewBlock(blockChain.lastBlock))
             network ! BlockChainUpdated(blockChain)
-          case Failure(e) => logger.error("Rejecting received chain.", e)
+          case Failure(e) => logger.error("Rejecting blockchain.", e)
         }
     }
   }

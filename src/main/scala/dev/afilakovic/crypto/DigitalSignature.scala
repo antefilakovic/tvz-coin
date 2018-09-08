@@ -1,6 +1,8 @@
 package dev.afilakovic.crypto
 
+import java.nio.file.{Files, Paths}
 import java.security._
+import java.security.spec.{PKCS8EncodedKeySpec, X509EncodedKeySpec}
 import java.util.Base64
 
 import dev.afilakovic.blockchain.{SignedTransaction, Transaction}
@@ -9,12 +11,13 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider
 import org.bouncycastle.jce.spec.ECParameterSpec
 
 object DigitalSignature {
-  val ecdsaSign = Signature.getInstance("SHA256withECDSA", new BouncyCastleProvider)
+  val bcProvider = new BouncyCastleProvider
+  val ecdsaSign = Signature.getInstance("SHA256withECDSA", bcProvider)
 
-  private def generateKeyPair(curve: String) = {
-    val ecP = CustomNamedCurves.getByName(curve)
+  private def generateKeyPair = {
+    val ecP = CustomNamedCurves.getByName("curve25519")
     val ecSpec = new ECParameterSpec(ecP.getCurve, ecP.getG, ecP.getN, ecP.getH, ecP.getSeed)
-    val generator: KeyPairGenerator = KeyPairGenerator.getInstance("ECDSA", new BouncyCastleProvider)
+    val generator: KeyPairGenerator = KeyPairGenerator.getInstance("ECDSA", bcProvider)
     generator.initialize(ecSpec)
     generator.generateKeyPair
   }
@@ -26,24 +29,41 @@ object DigitalSignature {
   }
 
   def verify(signedTx: SignedTransaction) = {
-    ecdsaSign.initVerify(signedTx.publicKey)
+    ecdsaSign.initVerify(loadPublicKeyFromBytes(signedTx.publicKey))
     ecdsaSign.update(signedTx.transaction.hash.toString.getBytes("UTF-8"))
     ecdsaSign.verify(signedTx.signature)
   }
 
-  def apply(curve: String) = new DigitalSignature(curve)
+  def apply = {
+    val keyPair: KeyPair = generateKeyPair
+    new DigitalSignature(keyPair.getPrivate, keyPair.getPublic)
+  }
+
+  def apply(privKeyLocation: String, pubKeyLocation: String) = new DigitalSignature(loadPrivateKey(privKeyLocation), loadPublicKey(pubKeyLocation))
+
+  private def loadPrivateKey(privKeyLocation: String) = {
+    val privateKeyBytes = Files.readAllBytes(Paths.get(privKeyLocation))
+    val keySpec = new PKCS8EncodedKeySpec(privateKeyBytes)
+    val kf = KeyFactory.getInstance("ECDSA", bcProvider)
+    kf.generatePrivate(keySpec)
+  }
+
+  def loadPublicKey(pubKeyLocation: String) = {
+    val publicKeyBytes = Files.readAllBytes(Paths.get(pubKeyLocation))
+    loadPublicKeyFromBytes(publicKeyBytes)
+  }
+
+  private def loadPublicKeyFromBytes(byteArray: Array[Byte]) = {
+    val keySpec = new X509EncodedKeySpec(byteArray)
+    val kf = KeyFactory.getInstance("ECDSA", bcProvider)
+    kf.generatePublic(keySpec)
+  }
 }
 
-class DigitalSignature(val curve: String) {
+case class DigitalSignature private(privKey: PrivateKey, pubKey: PublicKey) {
+  val address: String = Hashing().hashAddress(Base64.getEncoder.encodeToString(pubKey.getEncoded))
 
-  import dev.afilakovic.crypto.DigitalSignature._
+  def publicKey = pubKey
 
-  private val keyPair: KeyPair = generateKeyPair(curve)
-
-  private val privateKey = keyPair.getPrivate
-  val publicKey = keyPair.getPublic
-
-  def address: String = Hashing().hashAddress(Base64.getEncoder.encodeToString(publicKey.getEncoded))
-
-  def sign(transaction: Transaction) = DigitalSignature.sign(transaction, privateKey)
+  def sign(transaction: Transaction) = DigitalSignature.sign(transaction, privKey)
 }

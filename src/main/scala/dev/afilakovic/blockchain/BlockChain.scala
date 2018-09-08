@@ -43,7 +43,7 @@ class BlockChain private(head: Block, tail: Option[BlockChain]) {
   private def validBlock(block: Block, previousBlock: Block) =
     previousBlock.index + 1 == block.index &&
       previousBlock.hash == block.previousHash &&
-      previousBlock.timestamp.isBefore(block.timestamp) &&
+      previousBlock.timestamp < block.timestamp &&
       BlockChain.HASHING.hashBlock(block) == block.hash &&
       areAllTransactionsValid(block) &&
       BlockChain.proofOfWork(block)

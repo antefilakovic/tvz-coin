@@ -3,17 +3,13 @@ package dev.afilakovic.crypto
 import java.math.BigInteger
 import java.security.MessageDigest
 
-import dev.afilakovic.AppConfig
 import dev.afilakovic.blockchain.{Block, Transaction, TransactionInput, TransactionOutput}
 
-object Hashing{
-  val DEFAULT_ALGORITHM = AppConfig.config.getString("crypto.default.algorithm")
-  val DEFAULT_CHARSET = AppConfig.config.getString("crypto.default.charset")
-
-  def apply(algorithm: String = DEFAULT_ALGORITHM, charset: String = DEFAULT_CHARSET) = new Hashing(algorithm, charset)
+object Hashing {
+  def apply(algorithm: String = "SHA-256", charset: String = "UTF-8") = new Hashing(algorithm, charset)
 }
 
-class Hashing private(algorithm: String, charset: String){
+class Hashing private(algorithm: String, charset: String) {
   private val digest = MessageDigest.getInstance(algorithm)
 
   implicit def byteArrayToBigInt(byteArray: Array[Byte]): BigInt = new BigInt(new BigInteger(byteArray))

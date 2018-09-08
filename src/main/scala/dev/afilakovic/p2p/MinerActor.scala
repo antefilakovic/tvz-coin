@@ -1,7 +1,5 @@
 package dev.afilakovic.p2p
 
-import java.time.LocalDateTime
-
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import com.typesafe.scalalogging.Logger
@@ -16,7 +14,7 @@ object MinerActor {
   case class MineBlock(blockChain: BlockChain,
                        transactions: Seq[SignedTransaction],
                        nonce: Long = 0,
-                       timeStamp: LocalDateTime = LocalDateTime.now)
+                       timeStamp: Long = System.currentTimeMillis)
 
   def props(master: ActorRef): Props = Props(new MinerActor(master))
 }
@@ -33,7 +31,7 @@ class MinerActor(master: ActorRef) extends Actor {
       }
 
       val lastBlock = blockChain.lastBlock
-      val newBlock = Block(lastBlock.index + 1, lastBlock.hash, transactionsToMine.toSet, nonce)
+      val newBlock = Block(lastBlock.index + 1, lastBlock.hash, transactionsToMine.toSet, nonce, timeStamp)
 
       if (BlockChain.proofOfWork(newBlock)) {
         logger.debug(s"Found a block with index ${newBlock.index} after ${newBlock.nonce + 1} attempts.")
