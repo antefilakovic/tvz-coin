@@ -1,0 +1,62 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
+    <script src="index.js"></script>
+    <script>
+        function doLoad () {
+            resolveNodes();
+            setTimeout(doLoad, 3000);
+        }
+    </script>
+</head>
+<body onload="doLoad()" class="container-fluid text-center">
+<p>Blockchain and balances for each node. Blocks are listed from last added to first</p>
+<div class="row">
+    <div id="node1" class="col-md-6 text-center">
+        <h2>Node 1</h2>
+        <form onSubmit="return transfer(0)">
+            <h3>Transfer coins</h3>
+            <label for="payee0">Payee</label> <select id="payee0">
+        </select>
+            <label for="amount0">Amount</label><input id="amount0" type="text"/>
+            <input type="submit" />
+        </form>
+        <p id="address1" class="d-none"></p>
+        <p id="balance1"></p>
+        <div id="blocks1"></div>
+    </div>
+
+    <div id="node2" class="col-md-6 text-center">
+        <h2>Node 2</h2>
+        <form onSubmit="return transfer(1)">
+            <h3>Transfer coins</h3>
+            <label for="payee1">Payee</label> <select id="payee1">
+        </select>
+            <label for="amount1">Amount</label><input id="amount1" type="text"/>
+            <input type="submit" />
+        </form>
+        <p id="address2" class="d-none"></p>
+        <p id="balance2"></p>
+        <div id="blocks2"></div>
+    </div>
+
+    <!--<div id="node3" class="col-md-4 text-center">-->
+        <!--<h2>Node 3</h2>-->
+        <!--<form onSubmit="return transfer(2)">-->
+            <!--<h3>Transfer coins</h3>-->
+            <!--<label for="payee2">Payee</label> <select id="payee2">-->
+        <!--</select>-->
+            <!--<label for="amount2">Amount</label><input id="amount2" type="text"/>-->
+            <!--<input type="submit" />-->
+        <!--</form>-->
+        <!--<p id="address3" class="d-none"></p>-->
+        <!--<p id="balance3"></p>-->
+        <!--<div id="blocks3"></div>-->
+    <!--</div>-->
+</div>
+</body>
+
+
+</html>

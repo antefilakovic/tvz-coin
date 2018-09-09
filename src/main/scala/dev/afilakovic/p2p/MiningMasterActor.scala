@@ -41,8 +41,9 @@ class MiningMasterActor(network: ActorRef)(implicit ec: ExecutionContext) extend
 
   override def receive = LoggingReceive {
     case MineBlock(blockChain, requestTransactions) =>
-      logger.debug(s"Got mining request for ${requestTransactions.size} new transactions with current blockchain index at ${blockChain.lastBlock.index}")
-      val filtered = requestTransactions.filterNot(blockChain.isTransactionValid)
+       logger.debug(s"Got mining request for ${requestTransactions.size} new transactions with current blockchain index at ${blockChain.lastBlock.index}")
+      val filtered = requestTransactions.filter(blockChain.isTransactionValid)
+        .filterNot(tx => tx.transaction.input.exists(in => transactions.map(_.transaction).flatMap(_.input).map(_.outputHash).contains(in.outputHash)))
 
       if ((filtered.toSet -- transactions).nonEmpty) {
         transactions ++= filtered
@@ -53,8 +54,8 @@ class MiningMasterActor(network: ActorRef)(implicit ec: ExecutionContext) extend
         context.watch(miner)
         miners += miner
 
-        miner ! MinerActor.MineBlock(blockChain, transactions.to[Seq])
-      } else logger.debug("Request contained no new messages, so not doing anything.")
+        miner ! MinerActor.MineBlock(blockChain, transactions)
+      } else logger.debug("Request contained no new transactions, so not doing anything.")
     case BlockChainChanged(newBlockChain) =>
       logger.debug("The blockchain has changed, stopping all miners.")
       miners.foreach(_ ! PoisonPill)

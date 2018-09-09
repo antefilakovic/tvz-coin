@@ -7,9 +7,9 @@ import scala.util.{Failure, Success, Try}
 
 object BlockChain {
   val HASHING = Hashing()
-  val DIFFICULTY = BigInt(2).pow(253)
+  val DIFFICULTY = BigInt(10).pow(72).toDouble
 
-  def proofOfWork(block: Block) = block.hash < BlockChain.DIFFICULTY
+  def proofOfWork(block: Block) = block.hash.abs.toDouble < BlockChain.DIFFICULTY
 
   def apply() = new BlockChain(GenesisBlock, None)
 
@@ -26,10 +26,13 @@ class BlockChain private(head: Block, tail: Option[BlockChain]) {
 
   def lastBlock = head
 
-  def unspentTransactionsForUser(user: String): Set[TransactionOutput] =
-    foldLeft[(Set[TransactionInput], Set[TransactionOutput])]((Set.empty[TransactionInput], Set.empty[TransactionOutput])) {
-      (tuple, block) => (block.transactionInputsByUser(user) ++ tuple._1, block.unspentTransactionOutputsByUser(user, tuple._1) ++ tuple._2)
-    }._2
+  def unspentTransactionsForUser(user: String): Set[TransactionOutput] = {
+    val users = list.flatMap(_.signedTransaction).map(_.transaction).flatMap(_.output).map(_.payee).distinct
+    println(s"found <${users.length}> users mentioned")
+    users.foreach(println)
+    val (inputs, outputs) = (list.flatMap(_.transactionInputsByUser(user)), list.flatMap(_.transactionOutputsByUser(user)))
+    outputs.filterNot(o => inputs.map(_.outputHash).contains(o.hash)).toSet
+  }
 
   def appendBlocks(newBlocks: Seq[Block]): Try[BlockChain] = newBlocks.foldLeft(Try(this)) {
     (thisChain, block) => thisChain.flatMap(chain => chain.addBlock(block))

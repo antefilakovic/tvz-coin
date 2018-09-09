@@ -3,10 +3,11 @@ package dev.afilakovic.p2p
 import akka.actor.{Actor, ActorRef, Props}
 import akka.event.LoggingReceive
 import com.typesafe.scalalogging.Logger
-import dev.afilakovic.blockchain.{Block, BlockChain, SignedTransaction, Transaction}
+import dev.afilakovic.AppConfig
+import dev.afilakovic.blockchain._
 import dev.afilakovic.p2p.NetworkActor.{BlockChainUpdated, BroadcastRequest}
 
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 object BlockChainActor {
 
@@ -21,6 +22,14 @@ object BlockChainActor {
   case class NewBlockChain(blocks: Seq[Block])
 
   case class CurrentBlockChain(blockChain: BlockChain)
+
+  case class CreateTransaction(amount: BigDecimal, payee: String)
+
+  case class TransactionCreated(signedTx: Try[SignedTransaction])
+
+  case object GetBalance
+
+  case class Balance(balance: BigDecimal)
 
   def props(peerToPeer: ActorRef) = Props(new BlockChainActor(BlockChain(), peerToPeer))
 }
@@ -37,6 +46,24 @@ class BlockChainActor(var blockChain: BlockChain, network: ActorRef) extends Act
     case GetLast => sender() ! NewBlock(blockChain.lastBlock)
     case GetAllBlocks => sender() ! NewBlockChain(blockChain.list)
     case GetBlockChain => sender() ! CurrentBlockChain(blockChain)
+    case CreateTransaction(amount, payee) => createTransaction(amount, payee, sender())
+    case GetBalance => sender() ! Balance(blockChain.unspentTransactionsForUser(AppConfig.SIGNATURE.address).map(_.amount).sum)
+  }
+
+  def createTransaction(amount: BigDecimal, payee: String, sender: ActorRef) = {
+    logger.info(s"${blockChain.list.flatMap(_.signedTransaction).map(_.transaction).flatMap(_.output).map(_.payee).distinct.length} users mentioned in chain")
+    val unspentTx = blockChain.unspentTransactionsForUser(AppConfig.SIGNATURE.address).toList
+    var txToUse = Set.empty[TransactionOutput]
+    var sum = BigDecimal(0)
+    var i = 0
+    while (sum < amount && i < unspentTx.size) {
+      val tx = unspentTx(i)
+      sum += tx.amount
+      txToUse = txToUse ++ Set(tx)
+      i = i + 1
+    }
+
+    sender ! BlockChainActor.TransactionCreated(TransactionCreator(txToUse.toSeq, amount, payee))
   }
 
   def newBlock(block: Block, peer: ActorRef) = {

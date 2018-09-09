@@ -82,7 +82,7 @@ class NetworkActor(implicit ec: ExecutionContext) extends Actor {
     case AddTransactions(transactions) =>
       (blockChainActor ? BlockChainActor.GetBlockChain).mapTo[CurrentBlockChain].map(chain => MineBlock(chain.blockChain, transactions.toList)).pipeTo(miningMaster)
     case BlockChainUpdated(blockChain) => miningMaster ! BlockChainChanged(blockChain)
-    case req@(BlockChainActor.GetBlockChain | BlockChainActor.GetAllBlocks | BlockChainActor.GetLast | BlockChainActor.NewBlock(_) | BlockChainActor.NewBlockChain(_)) =>
+    case req@(BlockChainActor.GetBlockChain | BlockChainActor.GetAllBlocks | BlockChainActor.GetLast | BlockChainActor.NewBlock(_) | BlockChainActor.NewBlockChain(_) | BlockChainActor.CreateTransaction(_, _) | BlockChainActor.GetBalance) =>
       blockChainActor.forward(req)
   }
 }

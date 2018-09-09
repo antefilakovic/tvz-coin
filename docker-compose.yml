@@ -3,7 +3,7 @@ services:
     node1:
         image: tvz-coin:0.2
         environment:
-        - JAVA_OPTS=-Dakka.remote.netty.tcp.hostname=node1 -Dcrypto.keys.path.key=test.key -Dcrypto.keys.path.pub=test.pub
+        - JAVA_OPTS=-Dakka.remote.netty.tcp.hostname=node1 -Dcrypto.keys.path.key=init.key -Dcrypto.keys.path.pub=init.pub -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
         ports:
         - "8080:8080"
         - "5005:5005"
@@ -13,16 +13,16 @@ services:
         links:
         - node1
         environment:
-        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor
+        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor -Dcrypto.keys.path.key= -Dcrypto.keys.path.pub=
         ports:
         - "8081:8080"
+#        - "5005:5005"
 
-    node3:
-        image: tvz-coin:0.2
-        links:
-        - node1
-        environment:
-        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor
-        ports:
-        - "8082:8080"
-
+#    node3:
+#        image: tvz-coin:0.2
+#        links:
+#        - node1
+#        environment:
+#        - JAVA_OPTS=-Dnetwork.seed=akka.tcp://TvzCoin@node1:2552/user/networkActor -Dcrypto.keys.path.key= -Dcrypto.keys.path.pub=
+#        ports:
+#        - "8082:8080"
