@@ -1,5 +1,6 @@
 package dev.afilakovic.blockchain
 
+import dev.afilakovic.AppConfig
 import dev.afilakovic.crypto.{DigitalSignature, Hashing}
 
 import scala.annotation.tailrec
@@ -26,12 +27,17 @@ class BlockChain private(head: Block, tail: Option[BlockChain]) {
 
   def lastBlock = head
 
-  def unspentTransactionsForUser(user: String): Set[TransactionOutput] = {
-    val users = list.flatMap(_.signedTransaction).map(_.transaction).flatMap(_.output).map(_.payee).distinct
-    println(s"found <${users.length}> users mentioned")
-    users.foreach(println)
-    val (inputs, outputs) = (list.flatMap(_.transactionInputsByUser(user)), list.flatMap(_.transactionOutputsByUser(user)))
-    outputs.filterNot(o => inputs.map(_.outputHash).contains(o.hash)).toSet
+  def unspentTransactionsForUser(user: String): List[TransactionOutput] = {
+    val transactions = list.reverse.flatMap(_.signedTransaction).map(_.transaction)
+    val address = AppConfig.SIGNATURE.address
+    val (inputs, outputs) = (
+      transactions.flatMap(_.input).filter(_.payer == address), transactions.flatMap(_.output).filter(_.payee == address)
+    )
+    println(s"Found <${inputs.size} inputs with hashes <${inputs.map(_.outputHash).mkString(", ")}>")
+    println(s"Found <${outputs.size} outputs with hashes <${outputs.map(_.hash).mkString(", ")}>")
+    val found = outputs.filterNot(o => inputs.map(_.outputHash).contains(o.hash)).toSet
+    println(s"Found ${found.size} valid outputs with amounts : <${found.toList.map(_.amount).mkString(", ")}>")
+    found.toList
   }
 
   def appendBlocks(newBlocks: Seq[Block]): Try[BlockChain] = newBlocks.foldLeft(Try(this)) {

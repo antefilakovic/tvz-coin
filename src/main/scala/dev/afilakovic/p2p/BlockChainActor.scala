@@ -52,7 +52,7 @@ class BlockChainActor(var blockChain: BlockChain, network: ActorRef) extends Act
 
   def createTransaction(amount: BigDecimal, payee: String, sender: ActorRef) = {
     logger.info(s"${blockChain.list.flatMap(_.signedTransaction).map(_.transaction).flatMap(_.output).map(_.payee).distinct.length} users mentioned in chain")
-    val unspentTx = blockChain.unspentTransactionsForUser(AppConfig.SIGNATURE.address).toList
+    val unspentTx = blockChain.unspentTransactionsForUser(AppConfig.SIGNATURE.address)
     var txToUse = Set.empty[TransactionOutput]
     var sum = BigDecimal(0)
     var i = 0
